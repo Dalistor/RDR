@@ -1,0 +1,13 @@
+{
+  "name": "rdr",
+  "version": "0.0.1",
+  "description": "Sitema para gerar relatórios de tempo de uma reuni",
+  "author": "Dalistor <diego.sil.cabral@gmail.com>",
+  "private": true,
+  "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  }
+}

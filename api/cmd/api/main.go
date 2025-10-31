@@ -1,0 +1,48 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+
+	"rdr/scraper/cmd/settings"
+	"rdr/scraper/internal/web/ulrs"
+)
+
+func loadEnv() error {
+	err := godotenv.Load()
+	if err != nil {
+		return fmt.Errorf("Erro ao carregar o arquivo .env: %v", err)
+	}
+
+	log.Println("Arquivo .env carregado com sucesso")
+
+	return nil
+}
+
+func main() {
+	fmt.Println("\033[43m\033[30m Bem-vindo ao RDR scraper!\033[0m")
+
+	if err := loadEnv(); err != nil {
+		log.Fatal(err)
+	}
+
+	switch os.Getenv("MODE") {
+	case "RELEASE":
+		gin.SetMode(gin.ReleaseMode)
+	case "DEBUG":
+		gin.SetMode(gin.DebugMode)
+	default:
+		panic("ENV não definida")
+	}
+
+	router := gin.Default()
+	router.Use(settings.Cors())
+
+	ulrs.SetUrls(router)
+
+	router.Run(":" + os.Getenv("PORT"))
+}

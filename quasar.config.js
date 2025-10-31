@@ -12,6 +12,7 @@ export default defineConfig((/* ctx */) => {
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
     boot: [
+      'aar-bridge'
     ],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
@@ -58,7 +59,7 @@ export default defineConfig((/* ctx */) => {
 
       // extendViteConf (viteConf) {},
       // viteVuePluginOptions: {},
-      
+
       // vitePlugins: [
       //   [ 'package-name', { ..pluginOptions.. }, { server: true, client: true } ]
       // ]
@@ -85,7 +86,7 @@ export default defineConfig((/* ctx */) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: []
+      plugins: ['Notify', 'Loading', 'Dialog']
     },
 
     // animations: 'all', // --- includes all animations
