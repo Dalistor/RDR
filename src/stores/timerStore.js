@@ -59,7 +59,13 @@ export function saveToLocalStorage() {
 }
 
 export function initializeFromApi(json) {
-  state.meta = { ...state.meta, ...(json.meta || {}) }
+  // Limpa completamente o estado anterior
+  state.meta = {
+    date: json.meta?.date || '',
+    initial_time: '',
+    final_time: '',
+    final_comments: ''
+  }
   state.treasures = (json.treasures || []).map(enhanceItem)
   state.ministries = (json.ministries || []).map(enhanceItem)
   state.christian_life = (json.christian_life || []).map(enhanceItem)

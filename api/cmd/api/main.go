@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -30,19 +29,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	switch os.Getenv("MODE") {
-	case "RELEASE":
-		gin.SetMode(gin.ReleaseMode)
-	case "DEBUG":
-		gin.SetMode(gin.DebugMode)
-	default:
-		panic("ENV não definida")
-	}
+	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.Default()
 	router.Use(settings.Cors())
 
 	ulrs.SetUrls(router)
 
-	router.Run(":" + os.Getenv("PORT"))
+	router.Run(":" + "12765")
 }

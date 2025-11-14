@@ -72,7 +72,6 @@
         <img :src="icons.christian" alt="" class="sec-icon" />
         <span class="name">NOSSA VIDA CRISTÃ</span>
       </div>
-<div class="line"><span class="t">Presidente:</span> <span class="v">{{ fmt(0) }}</span></div>
       <template v-if="!loading">
       <div v-for="(p,idx) in state.christian_life" :key="p.id" class="line">
         <div class="line-main">

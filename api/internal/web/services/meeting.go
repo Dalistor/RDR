@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -11,9 +10,10 @@ import (
 )
 
 func GetMeeting() (types.Meeting, error) {
-	accessUrl := os.Getenv("ACCESS_URL")
+	accessUrl := "https://wol.jw.org"
 	if accessUrl == "" {
-		return types.Meeting{}, fmt.Errorf("ACCESS_URL não definida")
+		// Retorna dados mockados quando ACCESS_URL não está definida (modo mobile)
+		return getMockMeeting(), nil
 	}
 
 	url := fmt.Sprintf("%s/%s", accessUrl, "pt/wol/meetings/r5/lp-t/")
@@ -39,7 +39,15 @@ func GetMeeting() (types.Meeting, error) {
 	ministriesParts := parseStrongItems(strongMinistriesItems, "ministries")
 
 	strongChristianLifeItems := scrap.GetStrongInH3WithNumber(apostileDoc, "du-color--maroon-600")
-	christianLifeParts := parseStrongItems(strongChristianLifeItems, "christian_life")
+
+	christianLifeParts := []*types.Part{}
+	christianLifeParts = parseStrongItems(strongChristianLifeItems, "christian_life")
+
+	// Adiciona "Presidente" como primeira parte
+	presidentePart := &types.Part{
+		Title: &[]string{"Presidente"}[0],
+	}
+	christianLifeParts = append([]*types.Part{presidentePart}, christianLifeParts...)
 
 	return types.Meeting{
 		Meta: &types.Meta{
@@ -85,6 +93,46 @@ func parseStrongItems(strongItems []string, partType string) []*types.Part {
 	}
 
 	return parts
+}
+
+// getMockMeeting retorna dados mockados para uso no mobile quando ACCESS_URL não está definida
+func getMockMeeting() types.Meeting {
+	presidenteTitle := "Presidente"
+	conselhoTitle := "Conselho"
+	transicaoTitle := "Transição"
+
+	treasuresParts := []*types.Part{
+		{Title: &[]string{"1. Tenha uma vida feliz e saudável"}[0], SubParts: []*types.Part{{Title: &presidenteTitle}}},
+		{Title: &[]string{"2. Joias espirituais"}[0], SubParts: []*types.Part{{Title: &presidenteTitle}}},
+		{Title: &[]string{"3. Leitura da Bíblia"}[0], SubParts: []*types.Part{{Title: &conselhoTitle}, {Title: &transicaoTitle}}},
+	}
+
+	ministriesParts := []*types.Part{
+		{Title: &[]string{"4. Cultivando o interesse"}[0], SubParts: []*types.Part{{Title: &conselhoTitle}, {Title: &transicaoTitle}}},
+		{Title: &[]string{"5. Cultivando o interesse"}[0], SubParts: []*types.Part{{Title: &conselhoTitle}, {Title: &transicaoTitle}}},
+		{Title: &[]string{"6. Discurso"}[0], SubParts: []*types.Part{{Title: &conselhoTitle}, {Title: &transicaoTitle}}},
+	}
+
+	presidentePart := &types.Part{
+		Title: &presidenteTitle,
+	}
+	christianLifeParts := []*types.Part{
+		presidentePart,
+		{Title: &[]string{"7. Necessidades locais"}[0], SubParts: []*types.Part{{Title: &presidenteTitle}}},
+		{Title: &[]string{"8. Estudo bíblico de congregação"}[0]},
+	}
+
+	return types.Meeting{
+		Meta: &types.Meta{
+			Date:          time.Now().Format("02/01/2006"),
+			InitialTime:   "",
+			FinalTime:     "",
+			FinalComments: "",
+		},
+		Treasures:     treasuresParts,
+		Ministries:    ministriesParts,
+		ChristianLife: christianLifeParts,
+	}
 }
 
 func setSubparts(part *types.Part, subpartsText []string) {

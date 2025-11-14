@@ -21,33 +21,52 @@ const SAMPLE = {
 
 export default boot(() => {
   const w = window
-  const Plugins = (w.Capacitor && w.Capacitor.Plugins) || (w.Capacitor && w.Capacitor.Plugins) || {}
+  console.log('[aar-bridge] Inicializando...')
+  console.log('[aar-bridge] Capacitor disponível?', !!w.Capacitor)
+  const Plugins = (w.Capacitor && w.Capacitor.Plugins) || {}
+  console.log('[aar-bridge] Plugins disponíveis:', Object.keys(Plugins))
   const Native = Plugins?.RdrMobileApiPlugin
+  console.log('[aar-bridge] RdrMobileApiPlugin disponível?', !!Native)
 
   w.mobileApi = {
     async startServer(port = '12765', mode = 'RELEASE') {
+      console.log('[mobileApi] startServer chamado', { port, mode, nativeDisponivel: !!Native })
       try {
         if (Native?.startServer) {
-          await Native.startServer({ port, mode })
+          console.log('[mobileApi] Chamando Native.startServer...')
+          const result = await Native.startServer({ port, mode })
+          console.log('[mobileApi] Servidor iniciado na porta', port, result)
           return { port }
+        } else {
+          console.warn('[mobileApi] Native.startServer não disponível')
         }
       } catch (e) {
-        console.warn('startServer falhou', e)
+        console.error('[mobileApi] startServer falhou', e)
       }
       return { port }
     },
     async stopServer(timeoutMs = 500) {
       try {
-        if (Native?.stopServer) await Native.stopServer({ timeoutMs })
+        if (Native?.stopServer) {
+          await Native.stopServer({ timeoutMs })
+          console.log('Servidor parado')
+        }
       } catch (e) {
         console.warn('stopServer falhou', e)
       }
     },
     async getMeetingJson(port = '12765') {
       try {
-        const res = await fetch(`http://127.0.0.1:${port}/meeting`)
-        if (!res.ok) throw new Error(res.statusText)
-        return await res.json()
+        // Aguarda um pouco para garantir que o servidor esteja pronto
+        await new Promise(r => setTimeout(r, 300))
+        const res = await fetch(`http://127.0.0.1:${port}/meeting`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        const data = await res.json()
+        console.log('Dados recebidos do servidor', data)
+        return data
       } catch (e) {
         console.warn('GET /meeting falhou, usando SAMPLE', e)
         return SAMPLE

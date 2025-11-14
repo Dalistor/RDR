@@ -65,30 +65,50 @@ async function loadHtml2Pdf() {
 }
 
 async function newReport() {
-  // confirmação de nova reunião
-  const confirmed = await new Promise(resolve => {
-    $q.dialog({
-      title: 'Nova reunião',
-      message: 'Tem certeza que deseja iniciar uma nova reunião?',
-      cancel: true,
-      persistent: true
-    }).onOk(() => resolve(true)).onCancel(() => resolve(false)).onDismiss(() => resolve(false))
-  })
-  if (!confirmed) return
+  try {
+    // confirmação de nova reunião
+    const confirmed = await new Promise(resolve => {
+      $q.dialog({
+        title: 'Nova reunião',
+        message: 'Tem certeza que deseja iniciar uma nova reunião?',
+        cancel: true,
+        persistent: true
+      }).onOk(() => resolve(true)).onCancel(() => resolve(false)).onDismiss(() => resolve(false))
+    })
+    if (!confirmed) return
 
-  localStorage.removeItem('rdr:meeting-state')
+    localStorage.removeItem('rdr:meeting-state')
 
-  $q.loading.show({
-    message: 'Carregando dados do servidor...'
-  })
+    $q.loading.show({
+      message: 'Carregando dados do servidor...'
+    })
 
-  const data = await window.mobileApi.getMeetingJson('12765')
+    // Garante que o servidor está rodando (não precisa parar, apenas reiniciar se necessário)
+    try {
+      await window.mobileApi?.startServer?.('12765', 'RELEASE')
+    } catch (e) {
+      console.warn('startServer falhou', e)
+    }
 
-  $q.loading.hide()
+    // Aguarda um pouco para garantir que o servidor está pronto
+    await new Promise(r => setTimeout(r, 500))
 
-  initializeFromApi(data)
-  saveToLocalStorage()
-  showPanel.value = true
+    // Busca novos dados diretamente do servidor
+    const data = await window.mobileApi.getMeetingJson('12765')
+
+    $q.loading.hide()
+
+    initializeFromApi(data)
+    saveToLocalStorage()
+    showPanel.value = false
+  } catch (error) {
+    $q.loading.hide()
+    $q.notify({
+      type: 'negative',
+      message: 'Erro ao carregar nova reunião: ' + error.message,
+      position: 'top'
+    })
+  }
 }
 
 onBeforeUnmount(() => {
