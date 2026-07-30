@@ -16,7 +16,7 @@ class SectionHeader extends StatelessWidget {
     this.padding = const EdgeInsets.fromLTRB(4, 16, 4, 8),
   });
 
-  /// Seção a que este cabeçalho pertence — define a cor e o ícone.
+  /// Seção a que este cabeçalho pertence — define a cor do título.
   final SectionKind kind;
 
   /// Título exibido; é sempre renderizado em caixa alta.
@@ -25,47 +25,21 @@ class SectionHeader extends StatelessWidget {
   /// Espaçamento externo, ajustável pelo print para casar com o layout.
   final EdgeInsetsGeometry padding;
 
-  /// Ícone que representa a seção, aproximado entre os do Material:
-  /// losango para Tesouros, espiga para Faça Seu Melhor, ovelha para
-  /// Nossa Vida Cristã.
-  static IconData iconFor(SectionKind kind) => switch (kind) {
-    SectionKind.treasures => Icons.diamond_outlined,
-    SectionKind.ministry => Icons.grass,
-    SectionKind.christianLife => Icons.pets,
-  };
-
   @override
   Widget build(BuildContext context) {
-    final Color color = AppTheme.sectionColor(kind);
-
+    // Sem ícone: a cor do título já distingue as três seções, na tela e no
+    // print, e o texto ganha a largura inteira da linha.
     return Padding(
       padding: padding,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(iconFor(kind), size: 18, color: Colors.white),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              title.toUpperCase(),
-              style: TextStyle(
-                color: color,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.4,
-                height: 1.2,
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          color: AppTheme.sectionColor(kind),
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.4,
+          height: 1.2,
+        ),
       ),
     );
   }

@@ -150,6 +150,17 @@ class MeetingNotifier extends StateNotifier<MeetingReport?> {
     } on ScheduleParseException catch (erro) {
       if (!mounted) return;
       _fetchStatus.fail(erro.message);
+    } on Object catch (erro) {
+      // Rede de dispositivo e plugins têm mais jeitos de falhar do que os dois
+      // acima. Sem esta rede de segurança, uma exceção inesperada deixaria a
+      // busca parada em "carregando" para sempre, sem nem o botão de tentar
+      // de novo.
+      debugPrint('Falha inesperada ao baixar a programação: $erro');
+      if (!mounted) return;
+      _fetchStatus.fail(
+        'Não foi possível baixar a programação. Verifique a internet e '
+        'tente de novo.',
+      );
     }
   }
 
@@ -163,6 +174,19 @@ class MeetingNotifier extends StateNotifier<MeetingReport?> {
     await _replace(
       _builder.build(weekLabel: weekLabel, sections: _secoesVazias),
     );
+  }
+
+  /// Descarta o relatório inteiro — da memória e do disco — e devolve o app ao
+  /// estado "nenhuma programação carregada".
+  ///
+  /// Depois de encerrada a reunião o relatório fica congelado: esta é a única
+  /// saída, para começar a semana seguinte com uma lista nova. Como não há
+  /// como desfazer, quem chama confirma antes.
+  Future<void> resetAll() async {
+    if (!mounted) return;
+    state = null;
+    _fetchStatus.markIdle();
+    await _storage.clear();
   }
 
   /// Arranca o cronômetro no item selecionado.

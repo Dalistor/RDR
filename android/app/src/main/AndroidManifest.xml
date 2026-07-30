@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Baixar a programação do wol.jw.org. Os manifestos de debug e profile já
+         declaram esta permissão por conta da ferramenta do Flutter; sem ela
+         aqui, só o APK de release fica sem rede — e o download falha como se
+         fosse falta de internet. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="RDR"
         android:name="${applicationName}"

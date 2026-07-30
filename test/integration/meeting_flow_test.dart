@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:rdr/models/meeting_report.dart';
 import 'package:rdr/models/meeting_section.dart';
 import 'package:rdr/models/section_kind.dart';
+import 'package:rdr/providers/meeting_provider.dart';
 import 'package:rdr/repositories/report_storage_repository.dart';
 import 'package:rdr/repositories/wol_repository.dart';
 import 'package:rdr/services/meeting_timer_service.dart';
@@ -508,6 +509,32 @@ void main() {
         expect(somaDosItens, report.endedAt!.difference(report.startedAt!));
       },
     );
+  });
+
+  group('Fluxo completo — reiniciar tudo', () {
+    test('apaga o relatório da memória e do disco', () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = ReportStorageRepository();
+      final notifier = MeetingNotifier(
+        timer: MeetingTimerService(clock: DateTime.now),
+        builder: const ReportBuilder(),
+        parser: const ScheduleParser(),
+        wol: WolRepository(client: clienteDasFixtures()),
+        storage: storage,
+        fetchStatus: ScheduleFetchNotifier(),
+      );
+      await notifier.restored;
+      await notifier.downloadSchedule();
+      expect(notifier.state, isNotNull);
+      expect(await storage.load(), isNotNull);
+
+      await notifier.resetAll();
+
+      // Some das duas pontas: a tela volta ao estado vazio e o app não
+      // restaura nada no próximo boot.
+      expect(notifier.state, isNull);
+      expect(await storage.load(), isNull);
+    });
   });
 }
 

@@ -41,9 +41,9 @@ class ControlPanel extends ConsumerWidget {
   /// da reunião de `Iniciar reunião` para `Encerrar reunião`.
   final bool hasStarted;
 
-  /// A reunião já foi encerrada: o alvo central e o botão da reunião não fazem
-  /// mais sentido e ficam desabilitados. As setas e o `Zerar parte` seguem
-  /// ativos, para conferir e corrigir os tempos antes do print.
+  /// A reunião já foi encerrada: o relatório está congelado e **todos** os
+  /// botões do painel ficam desabilitados. Depois do encerramento não se edita
+  /// mais nada — sobra exportar o print e, no menu do topo, reiniciar tudo.
   final bool hasEnded;
 
   /// Altura dos dois alvos centrais. Bem acima do mínimo de 48dp de propósito.
@@ -73,12 +73,14 @@ class ControlPanel extends ConsumerWidget {
           Row(
             children: <Widget>[
               // As setas mexem só na seleção — o item que corre continua
-              // correndo. Seguem habilitadas mesmo após o encerramento, para
-              // o usuário poder percorrer a lista e conferir os tempos.
+              // correndo. Com a reunião encerrada não há mais o que selecionar:
+              // o relatório está congelado.
               _BotaoDeSeta(
                 icone: Icons.keyboard_arrow_up,
                 rotulo: 'Selecionar o item acima',
-                onPressed: () => notifier.selectPrevious(),
+                onPressed: cronometroAtivo
+                    ? () => notifier.selectPrevious()
+                    : null,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -99,7 +101,9 @@ class ControlPanel extends ConsumerWidget {
               _BotaoDeSeta(
                 icone: Icons.keyboard_arrow_down,
                 rotulo: 'Selecionar o item abaixo',
-                onPressed: () => notifier.selectNext(),
+                onPressed: cronometroAtivo
+                    ? () => notifier.selectNext()
+                    : null,
               ),
             ],
           ),
@@ -115,13 +119,16 @@ class ControlPanel extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               // Age direto, sem confirmação: mexe só na parte selecionada, e o
-              // preço de um toque errado é recronometrar uma parte.
+              // preço de um toque errado é recronometrar uma parte. Encerrada a
+              // reunião, some junto com o resto da edição.
               Flexible(
                 child: _BotaoSecundario(
                   icone: Icons.restart_alt,
                   rotulo: 'Zerar parte',
                   cor: const Color(0xFF52606D),
-                  onPressed: () => notifier.resetSelectedItem(),
+                  onPressed: cronometroAtivo
+                      ? () => notifier.resetSelectedItem()
+                      : null,
                 ),
               ),
               const SizedBox(width: 8),
@@ -163,8 +170,9 @@ class ControlPanel extends ConsumerWidget {
       context,
       titulo: encerrando ? 'Encerrar a reunião?' : 'Iniciar a reunião?',
       mensagem: encerrando
-          ? 'O horário de fim é gravado agora e o cronômetro para. Você ainda '
-                'pode corrigir os tempos e os horários antes de gerar o print.'
+          ? 'O horário de fim é gravado agora, o cronômetro para e o relatório '
+                'fica congelado: depois disso não dá mais para editar nada. '
+                'Confira os tempos antes de encerrar.'
           : 'O horário de início da reunião é gravado agora, com a hora do '
                 'celular. O cronômetro das partes continua sendo controlado '
                 'pelo botão de cima.',

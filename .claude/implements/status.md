@@ -27,6 +27,12 @@ Histórico de todas as implementações realizadas neste projeto.
 
 | 0019 | Horários da reunião sempre visíveis e editáveis na tela | 2026-07-30 | Concluído | `lib/screens/meeting_screen.dart`, `lib/widgets/edit_meeting_time_dialog.dart`, `test/widgets/edit_meeting_time_dialog_test.dart` |
 
+| 0020 | Relatório congelado ao encerrar a reunião e "Reiniciar tudo" no menu do topo | 2026-07-30 | Concluído | `lib/screens/meeting_screen.dart`, `lib/providers/meeting_provider.dart`, `lib/widgets/control_panel.dart`, `lib/widgets/reset_all_dialog.dart`, `test/widgets/control_panel_test.dart`, `test/integration/meeting_flow_test.dart` |
+
+| 0021 | Permissão de internet no APK de release e busca que não trava em "carregando" | 2026-07-30 | Concluído | `android/app/src/main/AndroidManifest.xml`, `lib/providers/meeting_provider.dart`, `CLAUDE.md` |
+
+| 0022 | Cabeçalhos de seção sem ícone, só o título colorido | 2026-07-30 | Concluído | `lib/widgets/section_header.dart`, `CLAUDE.md` |
+
 ---
 
 _Atualizado automaticamente pelas skills `/centaur-driven-tdd` e `/centaur-driven-implement`_

@@ -156,17 +156,25 @@ Painel com:
   - correndo, diz **Próximo**, para o tempo do item atual e desce a seleção **sem arrancar o próximo** (`advance`).
 
   Depois de um `advance` nada está correndo: é o toque seguinte que arranca. Não existe pausar sem avançar.
-- **Botão cíclico da reunião** — **Iniciar reunião** grava `Início da reunião` (`startMeeting`); **Encerrar reunião** grava `Fim da reunião`, para o cronômetro e libera o print (`endMeeting`). **Ambos exigem confirmação.**
-- **Zerar parte** — zera o tempo só da parte selecionada (`resetItem`). Não existe reset da reunião inteira.
+- **Botão cíclico da reunião** — **Iniciar reunião** grava `Início da reunião` (`startMeeting`); **Encerrar reunião** grava `Fim da reunião`, para o cronômetro, **congela o relatório** e libera o print (`endMeeting`). **Ambos exigem confirmação.**
+- **Zerar parte** — zera o tempo só da parte selecionada (`resetItem`). Não existe reset parcial da reunião: ou se zera uma parte, ou se apaga tudo pelo `Reiniciar tudo` do menu do topo.
 - **Seta acima / seta abaixo** — muda o item selecionado **sem pausar** o item de origem (ele continua correndo).
 
 Duas coisas distintas, não confundir: **item que está correndo** e **item selecionado na tela**. As setas mexem só na seleção; o botão cíclico mexe nos dois.
 
 O cronômetro das partes e os horários da reunião são independentes: `start` cuida só do item, e quem grava o `Início da reunião` é o `startMeeting`, mais ninguém. Se o usuário esquecer de abrir a reunião, o horário fica em branco — e é por isso que ele é editável.
 
-Edição de nome e de tempo é permitida **a qualquer momento**, inclusive com a reunião correndo. Editar o tempo do item que está correndo reajusta a contagem para seguir a partir do novo valor.
+Edição de nome e de tempo é permitida **enquanto a reunião não é encerrada**, inclusive com ela correndo. Editar o tempo do item que está correndo reajusta a contagem para seguir a partir do novo valor.
 
-As linhas `Início da reunião` e `Fim da reunião` ficam **sempre visíveis** nas duas pontas da lista, com um travessão `—` enquanto o horário não existe, e são **tocáveis**: abrem um diálogo de hora e minuto que grava (`setStartedAt` / `setEndedAt`) ou limpa o valor. É o conserto para quem esquecer de abrir ou encerrar a reunião no botão.
+As linhas `Início da reunião` e `Fim da reunião` ficam **sempre visíveis** nas duas pontas da lista, com um travessão `—` enquanto o horário não existe, e são **tocáveis** até o encerramento: abrem um diálogo de hora e minuto que grava (`setStartedAt` / `setEndedAt`) ou limpa o valor. É o conserto para quem esquecer de abrir ou encerrar a reunião no botão.
+
+### Relatório congelado e "Reiniciar tudo"
+
+**Encerrada a reunião, o relatório vira só leitura.** Some tudo: menu de toque longo (editar, adicionar, remover), seleção por toque, edição das linhas de horário, setas do painel e `Zerar parte` — o painel inteiro fica desabilitado. Restam só duas ações: **exportar o print** e, no menu de três pontos da barra superior, **Reiniciar tudo**.
+
+`Reiniciar tudo` (`MeetingNotifier.resetAll`) descarta o relatório da memória e do `shared_preferences` e devolve a tela ao estado "Nenhuma programação carregada" — é como se começa a semana seguinte. Fica no menu do topo, longe do polegar que aperta `Próximo`, está disponível durante toda a reunião e **sempre pede confirmação** (`showResetAllDialog`); não há como desfazer.
+
+A trava mora na UI: os services seguem puros e sem noção de "congelado" — a tela apenas deixa de oferecer as operações.
 
 O service ainda expõe um `next`, que emenda direto no próximo item sem passar pelo estado parado. Não é o que o painel usa — o painel usa `advance`.
 
@@ -182,7 +190,9 @@ A **programação** em si não é cacheada: baixar exige internet toda vez. O qu
 
 `screenshot` → `captureFromLongWidget` renderiza o relatório completo fora da tela em uma **imagem única sem corte**, independente da altura da tela. Salvar na galeria via `gal` e abrir o menu de compartilhamento via `share_plus`.
 
-O PNG traz título `Relatório da reunião`, a **data da semana** no cabeçalho, e o corpo do relatório com os ícones e cores das três seções. Fundo branco.
+O PNG traz título `Relatório da reunião`, a **data da semana** no cabeçalho, e o corpo do relatório com as cores das três seções. Fundo branco.
+
+Os cabeçalhos de seção não têm ícone: são só o título em caixa alta, na cor da seção (`SectionHeader`). Vale para a tela e para o print, que compartilham o mesmo widget.
 
 A folha impressa é o `ReportSheet` (`lib/widgets/report_sheet.dart`), disparado pelo botão de compartilhar da barra superior da `meeting_screen.dart`. Como é renderizada fora do `MaterialApp`, ela **não pode usar `Theme.of`, `MediaQuery.of` nem `Scaffold`** — cores e estilos são sempre explícitos — e define a **própria largura** (`ReportSheet.captureWidth`), deixando a altura livre para crescer. `ReportSheet.capturePixelRatio` controla a nitidez do texto.
 
@@ -245,7 +255,7 @@ Um `service` só pode ser testado sem Flutter engine: nada de `material.dart` ne
 - **Tocar o mínimo no site.** Baixar a programação só quando o usuário pedir. Nada de polling. Baixar exige internet — não há cache de programação, mas o relatório já montado funciona offline.
 - O HTML do wol.jw.org pode mudar sem aviso: o parser precisa falhar com mensagem clara e deixar o usuário montar as partes na mão.
 - Tela do celular é pequena: os botões do painel de controle são tocados no escuro e às pressas. Alvos grandes, `Resetar` longe do `Próximo`.
-- O app não precisa de permissão de internet além da padrão do Android; salvar na galeria exige permissão em Android < 13 (`gal` cuida disso, mas testar no aparelho real).
+- **`android.permission.INTERNET` fica no `android/app/src/main/AndroidManifest.xml`** e não pode sair de lá: os manifestos de `debug` e `profile` já a declaram por conta da ferramenta do Flutter, então a falta dela só aparece no **APK de release** — o download falha como se fosse falta de internet, e nenhum teste pega isso. Salvar na galeria exige permissão em Android < 13 (`gal` cuida disso, mas testar no aparelho real).
 
 ## Contexto Extra
 

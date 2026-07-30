@@ -66,9 +66,7 @@ void main() {
     expect(t.takeException(), isNull);
   });
 
-  testWidgets('encerrada: central desabilitado, setas e zerar ativos', (
-    t,
-  ) async {
+  testWidgets('encerrada: o painel inteiro fica desabilitado', (t) async {
     await montar(
       t,
       isRunning: false,
@@ -84,13 +82,27 @@ void main() {
       ),
     );
     expect(central.onPressed, isNull);
-    final zerar = t.widget<OutlinedButton>(
-      find.ancestor(
-        of: find.text('Zerar parte'),
-        matching: find.byType(OutlinedButton),
-      ),
+    // Nem zerar parte, nem encerrar/iniciar reunião: o relatório está
+    // congelado e só o print e o menu do topo continuam de pé.
+    for (final OutlinedButton botao in t
+        .widgetList<OutlinedButton>(find.byType(OutlinedButton))) {
+      expect(botao.onPressed, isNull);
+    }
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('em andamento: setas e zerar parte seguem ativos', (t) async {
+    await montar(
+      t,
+      isRunning: true,
+      hasStarted: true,
+      hasEnded: false,
+      largura: 320,
     );
-    expect(zerar.onPressed, isNotNull);
+    for (final OutlinedButton botao in t
+        .widgetList<OutlinedButton>(find.byType(OutlinedButton))) {
+      expect(botao.onPressed, isNotNull);
+    }
     expect(t.takeException(), isNull);
   });
 }

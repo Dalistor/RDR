@@ -15,6 +15,7 @@ import 'package:rdr/widgets/edit_meeting_time_dialog.dart';
 import 'package:rdr/widgets/item_actions_menu.dart';
 import 'package:rdr/widgets/item_row.dart';
 import 'package:rdr/widgets/report_sheet.dart';
+import 'package:rdr/widgets/reset_all_dialog.dart';
 import 'package:rdr/widgets/section_header.dart';
 import 'package:screenshot/screenshot.dart';
 
@@ -26,6 +27,9 @@ import 'package:screenshot/screenshot.dart';
 /// segundo, mas o tempo mostrado nunca é acumulado — vem sempre de
 /// `TimedItem.effectiveElapsed(DateTime.now())`, calculado a partir dos
 /// timestamps absolutos do item.
+/// Única entrada do menu de três pontos da barra superior.
+enum _AcaoDoMenu { reiniciarTudo }
+
 class MeetingScreen extends ConsumerStatefulWidget {
   const MeetingScreen({super.key});
 
@@ -101,12 +105,34 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
           ],
         ),
         actions: <Widget>[
-          if (report != null)
+          if (report != null) ...<Widget>[
             IconButton(
               onPressed: _exportando ? null : () => _exportarRelatorio(report),
               icon: const Icon(Icons.ios_share),
               tooltip: 'Exportar o relatório em imagem',
             ),
+            // Fora do painel de controle de propósito: é a ação que apaga a
+            // reunião inteira e não pode ficar ao alcance do polegar que toca
+            // `Próximo` no escuro.
+            PopupMenuButton<_AcaoDoMenu>(
+              enabled: !_exportando,
+              tooltip: 'Mais opções',
+              onSelected: (_) => _reiniciarTudo(),
+              itemBuilder: (BuildContext _) => <PopupMenuEntry<_AcaoDoMenu>>[
+                const PopupMenuItem<_AcaoDoMenu>(
+                  value: _AcaoDoMenu.reiniciarTudo,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.delete_sweep_outlined,
+                      color: AppTheme.christianLifeColor,
+                    ),
+                    title: Text('Reiniciar tudo'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
       body: Stack(
@@ -216,24 +242,38 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
   /// o item selecionado ainda que ele esteja fora da tela.
   Widget _buildLista(MeetingReport report) {
     final DateTime agora = DateTime.now();
+    // Reunião encerrada congela o relatório: nada de renomear, ajustar tempo,
+    // adicionar, remover ou corrigir horário. O que resta é exportar o print
+    // ou reiniciar tudo pelo menu do topo.
+    final bool congelado = report.endedAt != null;
     final List<Widget> linhas = <Widget>[
       _LinhaDeHorario(
         rotulo: 'Início da reunião:',
         horario: report.startedAt,
-        onTap: () => _editarHorario(inicio: true, atual: report.startedAt),
+        onTap: congelado
+            ? null
+            : () => _editarHorario(inicio: true, atual: report.startedAt),
       ),
-      _buildLinha(report, report.openingComments, agora, null),
+      _buildLinha(report, report.openingComments, agora, null, congelado),
       for (final section in report.sections) ...<Widget>[
         SectionHeader(kind: section.kind, title: section.title),
         for (final item in section.items)
-          _buildLinha(report, item, agora, AppTheme.sectionColor(section.kind)),
+          _buildLinha(
+            report,
+            item,
+            agora,
+            AppTheme.sectionColor(section.kind),
+            congelado,
+          ),
       ],
       const SizedBox(height: 16),
-      _buildLinha(report, report.closingComments, agora, null),
+      _buildLinha(report, report.closingComments, agora, null, congelado),
       _LinhaDeHorario(
         rotulo: 'Fim da reunião:',
         horario: report.endedAt,
-        onTap: () => _editarHorario(inicio: false, atual: report.endedAt),
+        onTap: congelado
+            ? null
+            : () => _editarHorario(inicio: false, atual: report.endedAt),
       ),
     ];
 
@@ -254,6 +294,7 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
     TimedItem item,
     DateTime agora,
     Color? accent,
+    bool congelado,
   ) {
     return KeyedSubtree(
       key: _chaveDe(item.id),
@@ -267,8 +308,10 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
         isSelected: report.selectedItemId == item.id,
         isRunning: report.runningItemId == item.id,
         accentColor: accent,
-        onTap: () => ref.read(meetingProvider.notifier).select(item.id),
-        onLongPress: () => _abrirMenuDoItem(report, item),
+        onTap: congelado
+            ? null
+            : () => ref.read(meetingProvider.notifier).select(item.id),
+        onLongPress: congelado ? null : () => _abrirMenuDoItem(report, item),
       ),
     );
   }
@@ -347,6 +390,17 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
     });
   }
 
+  /// Apaga o relatório inteiro e devolve a tela ao estado vazio.
+  ///
+  /// Com a reunião encerrada nada mais é editável — é por aqui que se recomeça
+  /// na semana seguinte. Sempre com confirmação: não há como desfazer.
+  Future<void> _reiniciarTudo() async {
+    final MeetingNotifier notifier = ref.read(meetingProvider.notifier);
+    final bool confirmado = await showResetAllDialog(context);
+    if (!confirmado) return;
+    await notifier.resetAll();
+  }
+
   void _baixarProgramacao() {
     ref.read(meetingProvider.notifier).downloadSchedule();
   }
@@ -361,7 +415,8 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
 /// Fica sempre visível, mesmo antes do horário existir — aí mostra um travessão
 /// no lugar da hora. Some-la até a reunião encerrar faria o rodapé aparecer do
 /// nada no meio do uso, e esconderia o caminho para corrigir um horário
-/// esquecido: a linha inteira é tocável e abre a edição.
+/// esquecido: enquanto a reunião não encerra, a linha inteira é tocável e abre
+/// a edição. Encerrada, vira só leitura como o resto do relatório.
 class _LinhaDeHorario extends StatelessWidget {
   const _LinhaDeHorario({
     required this.rotulo,
@@ -374,7 +429,8 @@ class _LinhaDeHorario extends StatelessWidget {
   /// Nulo enquanto o horário não foi gravado.
   final DateTime? horario;
 
-  final VoidCallback onTap;
+  /// Nulo com a reunião encerrada: aí a linha vira só leitura e perde o lápis.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -409,7 +465,12 @@ class _LinhaDeHorario extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF9AA5B1)),
+            if (onTap != null)
+              const Icon(
+                Icons.edit_outlined,
+                size: 14,
+                color: Color(0xFF9AA5B1),
+              ),
           ],
         ),
       ),
