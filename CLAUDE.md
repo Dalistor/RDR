@@ -151,16 +151,24 @@ Sub-itens são cronometrados no mesmo fluxo do botão **Próximo**: ao avançar 
 
 Painel com:
 
-- **Iniciar** — arranca o cronômetro; na primeira vez grava `Início da reunião` do relógio do sistema.
-- **Pausar** — congela o item atual.
-- **Resetar** — zera tudo. **Exige diálogo de confirmação** (ação destrutiva, apaga a reunião em andamento).
-- **Próximo** — pausa o item atual e inicia o próximo da lista.
-- **Seta acima / seta abaixo** — muda o item selecionado **sem pausar** o item de origem (ele continua correndo).
-- **Encerrar reunião** — grava `Fim da reunião` do relógio do sistema, para o cronômetro e libera o print. **Exige confirmação.**
+- **Botão cíclico do cronômetro** — o botão apertado dezenas de vezes por noite, e quase o único usado durante a reunião:
+  - parado, diz **Iniciar** e arranca o item selecionado (`start`);
+  - correndo, diz **Próximo**, para o tempo do item atual e desce a seleção **sem arrancar o próximo** (`advance`).
 
-Duas coisas distintas, não confundir: **item que está correndo** e **item selecionado na tela**. As setas mexem só na seleção; o Próximo mexe nos dois.
+  Depois de um `advance` nada está correndo: é o toque seguinte que arranca. Não existe pausar sem avançar.
+- **Botão cíclico da reunião** — **Iniciar reunião** grava `Início da reunião` (`startMeeting`); **Encerrar reunião** grava `Fim da reunião`, para o cronômetro e libera o print (`endMeeting`). **Ambos exigem confirmação.**
+- **Zerar parte** — zera o tempo só da parte selecionada (`resetItem`). Não existe reset da reunião inteira.
+- **Seta acima / seta abaixo** — muda o item selecionado **sem pausar** o item de origem (ele continua correndo).
+
+Duas coisas distintas, não confundir: **item que está correndo** e **item selecionado na tela**. As setas mexem só na seleção; o botão cíclico mexe nos dois.
+
+O cronômetro das partes e os horários da reunião são independentes: `start` cuida só do item, e quem grava o `Início da reunião` é o `startMeeting`, mais ninguém. Se o usuário esquecer de abrir a reunião, o horário fica em branco — e é por isso que ele é editável.
 
 Edição de nome e de tempo é permitida **a qualquer momento**, inclusive com a reunião correndo. Editar o tempo do item que está correndo reajusta a contagem para seguir a partir do novo valor.
+
+As linhas `Início da reunião` e `Fim da reunião` ficam **sempre visíveis** nas duas pontas da lista, com um travessão `—` enquanto o horário não existe, e são **tocáveis**: abrem um diálogo de hora e minuto que grava (`setStartedAt` / `setEndedAt`) ou limpa o valor. É o conserto para quem esquecer de abrir ou encerrar a reunião no botão.
+
+O service ainda expõe um `next`, que emenda direto no próximo item sem passar pelo estado parado. Não é o que o painel usa — o painel usa `advance`.
 
 O cronômetro deve se basear em **timestamps absolutos** (`DateTime` de início do trecho + soma dos trechos anteriores), nunca em um contador incrementado por `Timer`. Caso contrário o tempo desanda quando a tela apaga ou o app vai para segundo plano.
 
@@ -203,10 +211,12 @@ Um `service` só pode ser testado sem Flutter engine: nada de `material.dart` ne
 | Rodar um arquivo | `flutter test test/services/schedule_parser_test.dart` |
 | Rodar um teste | `flutter test --plain-name "nome do teste"` |
 | Cobertura | `flutter test --coverage` (gera `coverage/lcov.info`) |
-| Local e nome | `test/**/*_test.dart`, espelhando a estrutura de `lib/`; testes de integração em `test/integration/` |
+| Local e nome | `test/**/*_test.dart`, espelhando a estrutura de `lib/`; testes de integração em `test/integration/`; fixtures de HTML em `test/fixtures/` |
 | Meta de cobertura | 100% em `lib/services/` e `lib/models/`. UI sem meta. |
 
 **Escopo do TDD:** regras testáveis — parser do HTML, geração de sub-itens, cálculo e formatação de tempos, máquina de estados do cronômetro, serialização do relatório. **UI não é testada** por padrão.
+
+**Exceção:** `test/widgets/control_panel_test.dart` cobre a tabela de estados do painel — qual rótulo, qual operação e qual botão fica desabilitado para cada combinação de `isRunning`, `hasStarted` e `hasEnded`, mais o layout em tela estreita. Isso é comportamento, não estilo: trocar um `advance()` por `next()` numa refatoração passaria despercebido sem ele. Testes de widget que verifiquem só aparência continuam fora do escopo.
 
 **Teste de integração:** `test/integration/meeting_flow_test.dart` cobre o encaixe das camadas que nenhum teste unitário alcança — fixture de HTML real → parser → `ReportBuilder` → `MeetingTimerService` → persistência → restauração —, simulando uma reunião inteira com `MockClient` e relógio falso. Mudança em qualquer uma dessas camadas deve manter esse teste verde.
 

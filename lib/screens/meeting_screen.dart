@@ -11,6 +11,7 @@ import 'package:rdr/repositories/image_export_repository.dart';
 import 'package:rdr/utils/app_theme.dart';
 import 'package:rdr/utils/time_format.dart';
 import 'package:rdr/widgets/control_panel.dart';
+import 'package:rdr/widgets/edit_meeting_time_dialog.dart';
 import 'package:rdr/widgets/item_actions_menu.dart';
 import 'package:rdr/widgets/item_row.dart';
 import 'package:rdr/widgets/report_sheet.dart';
@@ -123,6 +124,7 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
                 if (report != null)
                   ControlPanel(
                     isRunning: report.runningItemId != null,
+                    hasStarted: report.startedAt != null,
                     hasEnded: report.endedAt != null,
                   ),
               ],
@@ -215,7 +217,11 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
   Widget _buildLista(MeetingReport report) {
     final DateTime agora = DateTime.now();
     final List<Widget> linhas = <Widget>[
-      _CabecalhoDoRelatorio(startedAt: report.startedAt),
+      _LinhaDeHorario(
+        rotulo: 'Início da reunião:',
+        horario: report.startedAt,
+        onTap: () => _editarHorario(inicio: true, atual: report.startedAt),
+      ),
       _buildLinha(report, report.openingComments, agora, null),
       for (final section in report.sections) ...<Widget>[
         SectionHeader(kind: section.kind, title: section.title),
@@ -224,7 +230,11 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
       ],
       const SizedBox(height: 16),
       _buildLinha(report, report.closingComments, agora, null),
-      if (report.endedAt != null) _RodapeDoRelatorio(endedAt: report.endedAt!),
+      _LinhaDeHorario(
+        rotulo: 'Fim da reunião:',
+        horario: report.endedAt,
+        onTap: () => _editarHorario(inicio: false, atual: report.endedAt),
+      ),
     ];
 
     _descartarChavesOrfas(report);
@@ -261,6 +271,29 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
         onLongPress: () => _abrirMenuDoItem(report, item),
       ),
     );
+  }
+
+  /// Abre o diálogo de edição de um dos horários da reunião.
+  ///
+  /// Os dois horários são gravados pelo botão cíclico do painel, mas continuam
+  /// editáveis à mão: se o usuário esquecer de abrir ou de encerrar a reunião,
+  /// é aqui que ele conserta antes de gerar o print.
+  Future<void> _editarHorario({
+    required bool inicio,
+    required DateTime? atual,
+  }) async {
+    final MeetingNotifier notifier = ref.read(meetingProvider.notifier);
+    final MeetingTimeEdit? resultado = await showEditMeetingTimeDialog(
+      context: context,
+      titulo: inicio ? 'Início da reunião' : 'Fim da reunião',
+      atual: atual,
+    );
+    if (resultado == null) return;
+    if (inicio) {
+      await notifier.setStartedAt(resultado.valor);
+    } else {
+      await notifier.setEndedAt(resultado.valor);
+    }
   }
 
   /// Toque longo: abre o menu de manutenção da lista (editar, adicionar abaixo
@@ -323,83 +356,67 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
   }
 }
 
-/// Linha `Início da reunião: HH:MM` no topo da lista.
+/// Linha `Início da reunião: HH:MM` ou `Fim da reunião: HH:MM`.
 ///
-/// Antes do primeiro início o valor fica em branco — a linha permanece para o
-/// topo da tela não dançar quando o cronômetro arranca.
-class _CabecalhoDoRelatorio extends StatelessWidget {
-  const _CabecalhoDoRelatorio({required this.startedAt});
+/// Fica sempre visível, mesmo antes do horário existir — aí mostra um travessão
+/// no lugar da hora. Some-la até a reunião encerrar faria o rodapé aparecer do
+/// nada no meio do uso, e esconderia o caminho para corrigir um horário
+/// esquecido: a linha inteira é tocável e abre a edição.
+class _LinhaDeHorario extends StatelessWidget {
+  const _LinhaDeHorario({
+    required this.rotulo,
+    required this.horario,
+    required this.onTap,
+  });
 
-  final DateTime? startedAt;
+  final String rotulo;
+
+  /// Nulo enquanto o horário não foi gravado.
+  final DateTime? horario;
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-      child: Row(
-        children: <Widget>[
-          const Text(
-            'Início da reunião:',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A1A1A),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        // 48dp de alvo de toque, como o resto dos controles da tela.
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        alignment: Alignment.centerLeft,
+        child: Row(
+          children: <Widget>[
+            Text(
+              rotulo,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A1A1A),
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            startedAt == null ? '' : formatClock(startedAt!),
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.treasuresColor,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            const SizedBox(width: 6),
+            Text(
+              horario == null ? '—' : formatClock(horario!),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: horario == null
+                    ? const Color(0xFF9AA5B1)
+                    : AppTheme.treasuresColor,
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF9AA5B1)),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Linha `Fim da reunião: HH:MM`, exibida só depois de encerrada.
-class _RodapeDoRelatorio extends StatelessWidget {
-  const _RodapeDoRelatorio({required this.endedAt});
-
-  final DateTime endedAt;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
-      child: Row(
-        children: <Widget>[
-          const Text(
-            'Fim da reunião:',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            formatClock(endedAt),
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.treasuresColor,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Véu de progresso exibido enquanto o PNG do relatório é gerado, salvo na
-/// galeria e enviado ao compartilhamento.
 class _VeuDeExportacao extends StatelessWidget {
   const _VeuDeExportacao();
 

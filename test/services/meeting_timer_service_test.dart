@@ -101,17 +101,19 @@ void main() {
   });
 
   group('start', () {
-    test(
-      'grava startedAt e arranca o primeiro item quando nada está selecionado',
-      () {
-        final depois = service.start(relatorio());
+    test('arranca o primeiro item quando nada está selecionado', () {
+      final depois = service.start(relatorio());
 
-        expect(depois.startedAt, inicio);
-        expect(depois.runningItemId, 'abertura');
-        expect(depois.selectedItemId, 'abertura');
-        expect(item(depois, 'abertura').runningSince, inicio);
-      },
-    );
+      expect(depois.runningItemId, 'abertura');
+      expect(depois.selectedItemId, 'abertura');
+      expect(item(depois, 'abertura').runningSince, inicio);
+    });
+
+    test('não grava o início da reunião: isso é papel do startMeeting', () {
+      final depois = service.start(relatorio());
+
+      expect(depois.startedAt, isNull);
+    });
 
     test('arranca o item selecionado, e não o primeiro da ordem', () {
       final antes = relatorio().copyWith(selectedItemId: 'm4c');
@@ -124,8 +126,8 @@ void main() {
       expect(item(depois, 'abertura').runningSince, isNull);
     });
 
-    test('um start posterior não sobrescreve o startedAt original', () {
-      final primeiro = service.start(relatorio());
+    test('não altera um início de reunião já gravado', () {
+      final primeiro = service.start(service.startMeeting(relatorio()));
       relogio.avancar(const Duration(minutes: 12));
 
       final segundo = service.start(primeiro);
@@ -185,6 +187,173 @@ void main() {
       report = service.pause(report);
 
       expect(item(report, 't2').elapsed, const Duration(minutes: 5));
+    });
+  });
+
+  group('advance', () {
+    test('fecha o trecho do item corrente sem arrancar o próximo', () {
+      final correndo = service.start(relatorio().copyWith(selectedItemId: 't1'));
+      relogio.avancar(const Duration(minutes: 11, seconds: 51));
+
+      final depois = service.advance(correndo);
+
+      expect(
+        item(depois, 't1').elapsed,
+        const Duration(minutes: 11, seconds: 51),
+      );
+      expect(item(depois, 't1').runningSince, isNull);
+      expect(depois.runningItemId, isNull);
+    });
+
+    test('move a seleção para o próximo item da ordem canônica', () {
+      final correndo = service.start(relatorio().copyWith(selectedItemId: 't1'));
+
+      final depois = service.advance(correndo);
+
+      expect(depois.selectedItemId, 't1p');
+    });
+
+    test('não arranca o próximo item: nada fica correndo', () {
+      final correndo = service.start(relatorio().copyWith(selectedItemId: 't1'));
+
+      final depois = service.advance(correndo);
+
+      expect(depois.runningItemId, isNull);
+      expect(item(depois, 't1p').runningSince, isNull);
+      expect(
+        depois.orderedItems.where((i) => i.runningSince != null),
+        isEmpty,
+      );
+    });
+
+    test('no último item fecha o trecho e a seleção não se move', () {
+      final correndo = service.start(
+        relatorio().copyWith(selectedItemId: 'fechamento'),
+      );
+      relogio.avancar(const Duration(minutes: 5, seconds: 38));
+
+      final depois = service.advance(correndo);
+
+      expect(depois.selectedItemId, 'fechamento');
+      expect(
+        item(depois, 'fechamento').elapsed,
+        const Duration(minutes: 5, seconds: 38),
+      );
+      expect(depois.runningItemId, isNull);
+    });
+
+    test('sem nada correndo apenas move a seleção, sem mexer nos tempos', () {
+      final parado = relatorio().copyWith(selectedItemId: 'm4');
+
+      final depois = service.advance(parado);
+
+      expect(depois.selectedItemId, 'm4c');
+      expect(item(depois, 'm4').elapsed, Duration.zero);
+      expect(depois.runningItemId, isNull);
+    });
+  });
+
+  group('startMeeting', () {
+    test('grava o horário de início da reunião pelo relógio', () {
+      final depois = service.startMeeting(relatorio());
+
+      expect(depois.startedAt, inicio);
+    });
+
+    test('não arranca cronômetro nenhum e não mexe na seleção', () {
+      final antes = relatorio().copyWith(selectedItemId: 'm4');
+
+      final depois = service.startMeeting(antes);
+
+      expect(depois.runningItemId, isNull);
+      expect(depois.selectedItemId, 'm4');
+      expect(
+        depois.orderedItems.where((i) => i.runningSince != null),
+        isEmpty,
+      );
+    });
+
+    test('chamado duas vezes não sobrescreve o início já gravado', () {
+      final primeiro = service.startMeeting(relatorio());
+      relogio.avancar(const Duration(minutes: 20));
+
+      final segundo = service.startMeeting(primeiro);
+
+      expect(segundo.startedAt, inicio);
+    });
+  });
+
+  group('resetItem', () {
+    test('zera o elapsed do item indicado', () {
+      var report = service.start(relatorio().copyWith(selectedItemId: 't2'));
+      relogio.avancar(const Duration(minutes: 9, seconds: 51));
+      report = service.pause(report);
+
+      final depois = service.resetItem(report, 't2');
+
+      expect(item(depois, 't2').elapsed, Duration.zero);
+    });
+
+    test('item parado continua parado depois de zerado', () {
+      var report = service.start(relatorio().copyWith(selectedItemId: 't2'));
+      relogio.avancar(const Duration(minutes: 4));
+      report = service.pause(report);
+
+      final depois = service.resetItem(report, 't2');
+
+      expect(item(depois, 't2').runningSince, isNull);
+      expect(depois.runningItemId, isNull);
+    });
+
+    test('item correndo continua correndo, mas contando do zero', () {
+      final correndo = service.start(relatorio().copyWith(selectedItemId: 't1'));
+      relogio.avancar(const Duration(minutes: 7));
+
+      final depois = service.resetItem(correndo, 't1');
+
+      expect(item(depois, 't1').elapsed, Duration.zero);
+      expect(item(depois, 't1').runningSince, relogio.agora);
+      expect(depois.runningItemId, 't1');
+
+      relogio.avancar(const Duration(seconds: 30));
+      expect(
+        item(depois, 't1').effectiveElapsed(relogio.agora),
+        const Duration(seconds: 30),
+      );
+    });
+
+    test('não mexe no tempo de nenhum outro item', () {
+      var report = service.start(relatorio().copyWith(selectedItemId: 't1'));
+      relogio.avancar(const Duration(minutes: 3));
+      report = service.next(report);
+      relogio.avancar(const Duration(minutes: 2));
+      report = service.pause(report);
+
+      final depois = service.resetItem(report, 't1p');
+
+      expect(item(depois, 't1').elapsed, const Duration(minutes: 3));
+      expect(item(depois, 't1p').elapsed, Duration.zero);
+    });
+
+    test('não toca nos horários de início e fim da reunião', () {
+      final report = service
+          .startMeeting(relatorio())
+          .copyWith(endedAt: inicio.add(const Duration(hours: 1)));
+
+      final depois = service.resetItem(report, 't1');
+
+      expect(depois.startedAt, inicio);
+      expect(depois.endedAt, inicio.add(const Duration(hours: 1)));
+    });
+
+    test('id inexistente devolve o relatório sem alteração', () {
+      var report = service.start(relatorio().copyWith(selectedItemId: 't1'));
+      relogio.avancar(const Duration(minutes: 6));
+      report = service.pause(report);
+
+      final depois = service.resetItem(report, 'nao-existe');
+
+      expect(item(depois, 't1').elapsed, const Duration(minutes: 6));
     });
   });
 
@@ -325,7 +494,9 @@ void main() {
   group('endMeeting', () {
     test('fecha o trecho corrente e grava endedAt', () {
       final correndo = service.start(
-        relatorio().copyWith(selectedItemId: 'fechamento'),
+        service
+            .startMeeting(relatorio())
+            .copyWith(selectedItemId: 'fechamento'),
       );
       relogio.avancar(const Duration(minutes: 3));
 
@@ -346,36 +517,57 @@ void main() {
     });
   });
 
-  group('reset', () {
-    test('zera tempos e estado do cronômetro preservando a estrutura', () {
-      var report = service.start(relatorio());
-      relogio.avancar(const Duration(minutes: 40));
-      report = service.next(report);
-      relogio.avancar(const Duration(minutes: 5));
-      report = service.endMeeting(report);
+  group('setStartedAt e setEndedAt', () {
+    final DateTime vinteHoras = DateTime(2026, 7, 30, 20, 0);
 
-      final zerado = service.reset(report);
+    test('setStartedAt define o horário de início informado', () {
+      final depois = service.setStartedAt(relatorio(), vinteHoras);
 
-      expect(zerado.startedAt, isNull);
-      expect(zerado.endedAt, isNull);
-      expect(zerado.runningItemId, isNull);
-      expect(zerado.selectedItemId, isNull);
-      expect(
-        zerado.orderedItems.map((i) => i.elapsed),
-        everyElement(Duration.zero),
+      expect(depois.startedAt, vinteHoras);
+    });
+
+    test('setStartedAt com null limpa o horário de início', () {
+      final comInicio = service.startMeeting(relatorio());
+
+      final depois = service.setStartedAt(comInicio, null);
+
+      expect(depois.startedAt, isNull);
+    });
+
+    test('setStartedAt sobrescreve um início já gravado', () {
+      final comInicio = service.startMeeting(relatorio());
+
+      final depois = service.setStartedAt(comInicio, vinteHoras);
+
+      expect(depois.startedAt, vinteHoras);
+    });
+
+    test('setEndedAt define o horário de fim informado', () {
+      final depois = service.setEndedAt(relatorio(), vinteHoras);
+
+      expect(depois.endedAt, vinteHoras);
+    });
+
+    test('setEndedAt com null limpa o horário de fim', () {
+      final encerrada = service.endMeeting(relatorio());
+
+      final depois = service.setEndedAt(encerrada, null);
+
+      expect(depois.endedAt, isNull);
+    });
+
+    test('nenhum dos dois mexe no cronômetro das partes', () {
+      final correndo = service.start(relatorio().copyWith(selectedItemId: 't1'));
+      relogio.avancar(const Duration(minutes: 3));
+
+      final depois = service.setEndedAt(
+        service.setStartedAt(correndo, vinteHoras),
+        vinteHoras,
       );
-      expect(
-        zerado.orderedItems.map((i) => i.runningSince),
-        everyElement(isNull),
-      );
-      expect(zerado.weekLabel, '27 de julho–2 de agosto');
-      expect(zerado.orderedItems.map((i) => i.id), ordemCanonica);
-      expect(zerado.sections.map((s) => s.title), [
-        'TESOUROS DA PALAVRA DE DEUS',
-        'FAÇA SEU MELHOR NO MINISTÉRIO',
-        'NOSSA VIDA CRISTÃ',
-      ]);
-      expect(item(zerado, 'cl8').label, '8. Estudo bíblico de congregação');
+
+      expect(depois.runningItemId, 't1');
+      expect(item(depois, 't1').runningSince, inicio);
+      expect(item(depois, 't1').elapsed, Duration.zero);
     });
   });
 

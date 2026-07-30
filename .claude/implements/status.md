@@ -21,6 +21,12 @@ Histórico de todas as implementações realizadas neste projeto.
 | 0015 | Diálogos de edição, inclusão e remoção de itens | 2026-07-30 | Concluído | `lib/widgets/item_actions_menu.dart`, `lib/widgets/edit_item_dialog.dart`, `lib/widgets/add_item_dialog.dart`, `lib/widgets/remove_item_dialog.dart`, `lib/screens/meeting_screen.dart` |
 | 0016 | Relatório para impressão e exportação em PNG | 2026-07-30 | Concluído | `lib/widgets/report_sheet.dart`, `lib/screens/meeting_screen.dart` |
 
+| 0017 | Botão cíclico, zerar por parte e horários da reunião editáveis — camada de serviço | 2026-07-30 | Concluído | `lib/services/meeting_timer_service.dart`, `lib/providers/meeting_provider.dart`, `lib/widgets/control_panel.dart`, `test/services/meeting_timer_service_test.dart`, `test/integration/meeting_flow_test.dart` |
+
+| 0018 | Painel com botão cíclico único, zerar por parte e nome do app | 2026-07-30 | Concluído | `lib/widgets/control_panel.dart`, `lib/screens/meeting_screen.dart`, `android/app/src/main/AndroidManifest.xml`, `test/widgets/control_panel_test.dart` |
+
+| 0019 | Horários da reunião sempre visíveis e editáveis na tela | 2026-07-30 | Concluído | `lib/screens/meeting_screen.dart`, `lib/widgets/edit_meeting_time_dialog.dart`, `test/widgets/edit_meeting_time_dialog_test.dart` |
+
 ---
 
 _Atualizado automaticamente pelas skills `/centaur-driven-tdd` e `/centaur-driven-implement`_

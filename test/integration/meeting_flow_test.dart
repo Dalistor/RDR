@@ -95,7 +95,7 @@ MeetingReport cronometrarReuniaoInteira(
   MeetingReport inicial,
 ) {
   final duracoes = duracoesPorId(inicial);
-  var report = timer.start(inicial);
+  var report = timer.start(timer.startMeeting(inicial));
   for (final item in inicial.orderedItems) {
     relogio.avancar(duracoes[item.id]!);
     report = timer.next(report);
@@ -301,7 +301,7 @@ void main() {
 
     /// A reunião parada na terceira parte de Tesouros, que corre há 20s.
     MeetingReport reuniaoNaLeituraDaBiblia() {
-      var report = timer.start(relatorioDaSemana);
+      var report = timer.start(timer.startMeeting(relatorioDaSemana));
       for (var i = 0; i < 5; i++) {
         relogio.avancar(const Duration(minutes: 1));
         report = timer.next(report);
@@ -371,7 +371,7 @@ void main() {
     });
 
     test('startedAt e endedAt são os instantes do relógio falso', () {
-      var report = timer.start(relatorioDaSemana);
+      var report = timer.start(timer.startMeeting(relatorioDaSemana));
       for (var i = 0; i < 4; i++) {
         relogio.avancar(const Duration(minutes: 3));
         report = timer.next(report);
@@ -389,7 +389,7 @@ void main() {
     });
 
     test('nenhum item continua correndo depois de encerrar', () {
-      var report = timer.start(relatorioDaSemana);
+      var report = timer.start(timer.startMeeting(relatorioDaSemana));
       relogio.avancar(const Duration(minutes: 5));
       report = timer.next(report);
       relogio.avancar(const Duration(minutes: 5));
@@ -420,7 +420,7 @@ void main() {
 
     /// A reunião na segunda parte, correndo há 20s, com a primeira já fechada.
     MeetingReport reuniaoEmAndamento() {
-      var report = timer.start(relatorioDaSemana);
+      var report = timer.start(timer.startMeeting(relatorioDaSemana));
       relogio.avancar(const Duration(minutes: 1));
       report = timer.next(report);
       relogio.avancar(const Duration(seconds: 20));

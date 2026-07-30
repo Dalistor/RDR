@@ -192,11 +192,36 @@ class MeetingNotifier extends StateNotifier<MeetingReport?> {
     );
   }
 
+  /// Fecha o item corrente e desce a seleção, sem arrancar o próximo.
+  Future<void> advance() => _apply(_timer.advance);
+
+  /// Grava o horário de início da reunião.
+  Future<void> startMeeting() => _apply(_timer.startMeeting);
+
   /// Encerra a reunião e grava o horário do fim.
   Future<void> endMeeting() => _apply(_timer.endMeeting);
 
-  /// Zera todos os tempos, preservando a estrutura do relatório.
-  Future<void> reset() => _apply(_timer.reset);
+  /// Zera o tempo de um item, e só dele.
+  Future<void> resetItem(String id) =>
+      _apply((report) => _timer.resetItem(report, id));
+
+  /// Zera o tempo da parte selecionada — é o que o botão do painel faz.
+  ///
+  /// Sem nada selecionado não há o que zerar.
+  Future<void> resetSelectedItem() {
+    return _apply((report) {
+      final id = report.selectedItemId;
+      return id == null ? report : _timer.resetItem(report, id);
+    });
+  }
+
+  /// Define à mão o horário de início da reunião; `null` limpa.
+  Future<void> setStartedAt(DateTime? valor) =>
+      _apply((report) => _timer.setStartedAt(report, valor));
+
+  /// Define à mão o horário de fim da reunião; `null` limpa.
+  Future<void> setEndedAt(DateTime? valor) =>
+      _apply((report) => _timer.setEndedAt(report, valor));
 
   /// Troca o texto de um item.
   Future<void> rename(String id, String label) =>

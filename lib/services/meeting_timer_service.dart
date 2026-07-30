@@ -18,14 +18,13 @@ class MeetingTimerService {
   final Clock clock;
 
   /// Arranca o cronômetro no item selecionado.
+  ///
+  /// Cuida só do cronômetro da parte: o horário de início da reunião é gravado
+  /// por [startMeeting], num botão próprio e com confirmação.
   MeetingReport start(MeetingReport report) {
     final agora = clock();
     final alvo = _itemSelecionadoOuPrimeiro(report);
-    return _arrancar(
-      _fecharTrechoAberto(report, agora),
-      alvo.id,
-      agora,
-    ).copyWith(startedAt: report.startedAt ?? agora);
+    return _arrancar(_fecharTrechoAberto(report, agora), alvo.id, agora);
   }
 
   /// Congela o item que está correndo, somando o trecho aberto ao acumulado.
@@ -49,6 +48,51 @@ class MeetingTimerService {
     return _arrancar(fechado, proximo.id, agora);
   }
 
+  /// Fecha o item corrente e desce a seleção, **sem** arrancar o próximo.
+  ///
+  /// É a metade "parar e avançar" do botão cíclico do painel: depois de um
+  /// [advance] nada está correndo, e é o toque seguinte — um [start] — que
+  /// arranca o item recém-selecionado. Difere de [next], que emenda direto no
+  /// próximo item sem passar por um estado parado.
+  MeetingReport advance(MeetingReport report) {
+    return _mover(_fecharTrechoAberto(report, clock()), 1);
+  }
+
+  /// Zera o tempo do item [id], e só dele.
+  ///
+  /// Item parado continua parado; item correndo continua correndo, mas
+  /// contando do zero. Os horários de início e fim da reunião não são tocados —
+  /// zerar uma parte não desfaz a reunião.
+  MeetingReport resetItem(MeetingReport report, String id) {
+    return setElapsed(report, id, Duration.zero);
+  }
+
+  /// Grava o horário de início da reunião, sem tocar em cronômetro nenhum.
+  ///
+  /// É a metade "iniciar" do botão cíclico da reunião. O [start] cuida só do
+  /// cronômetro das partes: quem registra a hora que a reunião começou é esta
+  /// operação, e ninguém mais.
+  MeetingReport startMeeting(MeetingReport report) {
+    return report.copyWith(startedAt: report.startedAt ?? clock());
+  }
+
+  /// Define à mão o horário de início da reunião; `null` limpa o campo.
+  ///
+  /// Diferente de [startMeeting], sobrescreve um valor já gravado: é edição
+  /// explícita do usuário, para consertar um esquecimento ou um toque errado.
+  MeetingReport setStartedAt(MeetingReport report, DateTime? valor) {
+    return valor == null
+        ? report.copyWith(clearStartedAt: true)
+        : report.copyWith(startedAt: valor);
+  }
+
+  /// Define à mão o horário de fim da reunião; `null` limpa o campo.
+  MeetingReport setEndedAt(MeetingReport report, DateTime? valor) {
+    return valor == null
+        ? report.copyWith(clearEndedAt: true)
+        : report.copyWith(endedAt: valor);
+  }
+
   /// Move a seleção um passo para baixo na ordem canônica.
   ///
   /// O item que está correndo continua correndo: as setas mexem só na seleção.
@@ -65,23 +109,6 @@ class MeetingTimerService {
       report,
       agora,
     ).copyWith(endedAt: report.endedAt ?? agora);
-  }
-
-  /// Zera todos os tempos e o estado do cronômetro, preservando a estrutura do
-  /// relatório: semana, seções, labels e itens adicionados na mão.
-  ///
-  /// A seleção também volta ao início: a próxima reunião começa do primeiro
-  /// item, não de onde a anterior parou.
-  MeetingReport reset(MeetingReport report) {
-    return _mapearItens(
-      report,
-      (item) => item.copyWith(elapsed: Duration.zero, clearRunningSince: true),
-    ).copyWith(
-      clearStartedAt: true,
-      clearEndedAt: true,
-      clearRunningItemId: true,
-      clearSelectedItemId: true,
-    );
   }
 
   /// Troca o label do item [id] — fixo, parte ou sub-item — sem tocar nos
