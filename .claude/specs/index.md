@@ -4,7 +4,7 @@ Planejamentos de implementações complexas, decompostos em tasks para subagente
 
 | # | Título | Data | Status | Tasks |
 |---|--------|------|--------|-------|
-| — | — | — | — | — |
+| 0001 | App RDR completo — cronômetro e relatório da reunião Vida e Ministério | 2026-07-30 | Concluída | 16 tasks |
 
 ---
 
